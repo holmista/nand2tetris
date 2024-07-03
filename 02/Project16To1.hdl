@@ -1,0 +1,9 @@
+// returns first(index 15) bit of 16 bit
+
+CHIP Project16To1 {
+    IN in[16];
+    OUT out;
+
+    PARTS:
+    And(a=in[15], b=in[15], out=out);
+}

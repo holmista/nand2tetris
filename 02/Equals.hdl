@@ -1,0 +1,8 @@
+CHIP Equals {
+    IN a, b;
+    OUT out;
+
+    PARTS:
+    Xor(a=a, b=b, out=out1);
+    Not(in=out1, out=out);
+}

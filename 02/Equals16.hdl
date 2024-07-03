@@ -1,0 +1,41 @@
+CHIP Equals16 {
+    IN a[16], b[16];
+    OUT out;
+
+    PARTS:
+    Equals(a=a[0], b=b[0], out=out1);
+    Equals(a=a[1], b=b[1], out=out2);
+    Equals(a=a[2], b=b[2], out=out3);
+    Equals(a=a[3], b=b[3], out=out4);
+    Equals(a=a[4], b=b[4], out=out5);
+    Equals(a=a[5], b=b[5], out=out6);
+    Equals(a=a[6], b=b[6], out=out7);
+    Equals(a=a[7], b=b[7], out=out8);
+    Equals(a=a[8], b=b[8], out=out9);
+    Equals(a=a[9], b=b[9], out=out10);
+    Equals(a=a[10], b=b[10], out=out11);
+    Equals(a=a[11], b=b[11], out=out12);
+    Equals(a=a[12], b=b[12], out=out13);
+    Equals(a=a[13], b=b[13], out=out14);
+    Equals(a=a[14], b=b[14], out=out15);
+    Equals(a=a[15], b=b[15], out=out16);
+
+    And(a=out1, b=out2, out=out17);
+    And(a=out3, b=out4, out=out18);
+    And(a=out5, b=out6, out=out19);
+    And(a=out7, b=out8, out=out20);
+    And(a=out9, b=out10, out=out21);
+    And(a=out11, b=out12, out=out22);
+    And(a=out13, b=out14, out=out23);
+    And(a=out15, b=out16, out=out24);
+
+    And(a=out17, b=out18, out=out25);
+    And(a=out19, b=out20, out=out26);
+    And(a=out21, b=out22, out=out27);
+    And(a=out23, b=out24, out=out28);
+
+    And(a=out25, b=out26, out=out29);
+    And(a=out27, b=out28, out=out30);
+
+    And(a=out29, b=out30, out=out);
+}

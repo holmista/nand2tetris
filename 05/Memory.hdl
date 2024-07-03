@@ -1,0 +1,43 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/Memory.hdl
+/** 
+ * The Memory chip implements the complete address space of the Hack data memory,
+ * including RAM, memory mapped screen, and memory mapped keyboard.
+ * Outputs the value of the memory location specified by the address input.
+ * If (load == 1), sets the memory location specified by the address input
+ * to the value of the in input.
+ * Address space rules:
+ * Only the upper 16K + 8K + 1 words of the memory are used.
+ * Access to address 0 to 16383 (0x0000 to 0x3FFF) results in accessing the RAM;
+ * Access to address 16384 to 24575 (0x4000 to 0x5FFF) results in accessing the Screen memory map;
+ * Access to address 24576 (0x6000) results in accessing the Keyboard memory map.
+ */ 
+CHIP Memory {
+    IN in[16], load, address[15];
+    OUT out[16];
+
+    PARTS:
+    // if address is between [0, 16384) load regular ram 
+    // if address is between [16384, 24576) load screen memory map
+    // else load keyboard
+
+    // if first bit of address is 0, then load regular ram
+    // if first bit is 1, then load screen
+    // if first is 1 and second is 1, load keyboard
+
+    DMux4Way(in=load, sel=address[13..14], a=isRamAddress1, b=isRamAddress2, c=isScreenAddress, d=isKeyboardAddress);
+
+    Or(a=isRamAddress1, b=isRamAddress2, out=isRamAddress);
+
+    And(a=isRamAddress, b=load, out=loadRam);
+    And(a=isScreenAddress, b=load, out=loadScreen);
+    And(a=isKeyboardAddress, b=load, out=loadKeyboard);
+
+    RAM16K(in=in, load=loadRam, address=address[0..13], out=out1);
+    Screen(in=in, load=loadScreen, address=address[0..12], out=out2);
+    Keyboard(out=out3);
+
+    Mux4Way16(a=out1, b=out1, c=out2, d=out3, sel=address[13..14], out=out);
+}

@@ -1,0 +1,146 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/CPU.hdl
+/**
+ * The Hack Central Processing unit (CPU).
+ * Parses the binary code in the instruction input and executes it according to the
+ * Hack machine language specification. In the case of a C-instruction, computes the
+ * function specified by the instruction. If the instruction specifies to read a memory
+ * value, the inM input is expected to contain this value. If the instruction specifies
+ * to write a value to the memory, sets the outM output to this value, sets the addressM
+ * output to the target address, and asserts the writeM output (when writeM == 0, any
+ * value may appear in outM).
+ * If the reset input is 0, computes the address of the next instruction and sets the
+ * pc output to that value. If the reset input is 1, sets pc to 0.
+ * Note: The outM and writeM outputs are combinational: they are affected by the
+ * instruction's execution during the current cycle. The addressM and pc outputs are
+ * clocked: although they are affected by the instruction's execution, they commit to
+ * their new values only in the next cycle.
+ */
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to restart the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // Address of next instruction
+
+    PARTS:
+
+    // AREGISTER START here
+
+    And(a=instruction[15], b=true, out=isCInstruction);
+    Not(in=isCInstruction, out=isAInstruction);
+
+    // if it is a instruction(15th bit is 0), A register should be set to instruction, that's it for a instruction.
+    // if it is c instruction(15th bit is 1) and A register bit is asserted, A register should be set to alu output
+
+    Mux16(a=instruction, b=aluOutput, sel=instruction[15], out=ARegisterContent);
+
+    And(a=isCInstruction, b=instruction[5], out=t1);
+    Or(a=t1, b=isAInstruction, out=loadARegiater);
+
+    ARegister(in=ARegisterContent, load=loadARegiater, out=ARegisterOutput);
+    First15Bits(in=ARegisterOutput, out=addressM);
+
+    // AREGISTER END here
+
+    // ALU START here
+
+    // ALU gets 2 inputs: D register and (A register or M register)
+    // if we have a c instruction and 12th bit is 1 the we load M register
+    // if it is 0 we load A register
+
+    And(a=isCInstruction, b=instruction[12], out=loadMRegister);
+    Not(in=loadMRegister, out=loadARegister);
+
+    Mux16(a=ARegisterOutput, b=inM, sel=loadMRegister, out=aluInput);
+
+    And(a=isCInstruction, b=instruction[4], out=loadD);
+    Mux16(a=ARegisterOutput, b=aluOutput, sel=isCInstruction, out=DRegisterInput);
+
+    DRegister(in=DRegisterInput, load=loadD, out=Dout);
+
+    ALU(x=Dout, y=aluInput, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6], out=aluOutput, out=outM, zr=zr, ng=ng);
+
+    And(a=instruction[3], b=isCInstruction, out=writeM);
+
+    // ALU END here
+
+    // PC START Here
+
+    // zr is 1 and j bits are (010 or 011 or 110) then we jump
+    // ng is 1 and j bits are (100 or 110) then we jump
+    // if ng is 0 and zr is 0 it means the output is positive - pt
+    // if pt is 1 and j bits are (001 or 011) then we jump
+
+    // if all bits are 1 we jump regardless the output
+    // if all bits are 0 we do not jump regardless the output
+
+    // zr is 0 and j bits are 101 then we jump
+
+    // all of the above is true on if it is a c instruction
+
+    Not(in=instruction[2], out=notInstructionSecond);
+    Not(in=instruction[1], out=notInstructionFirst);
+    Not(in=instruction[0], out=notInstructionZeroth);
+
+    Not(in=zr, out=notZr);
+    Not(in=ng, out=notNg);
+    And(a=notZr, b=notNg, out=pt);
+
+    // first case
+    And3Way(a=notInstructionSecond, b=instruction[1], c=notInstructionZeroth, out=temp1);
+    And3Way(a=notInstructionSecond, b=instruction[1], c=instruction[0], out=temp2);
+    And3Way(a=instruction[2], b=instruction[1], c=notInstructionZeroth, out=temp3);
+
+    Or(a=temp1, b=temp2, out=temp4);
+    Or(a=temp4, b=temp3, out=temp5);
+    And(a=temp5, b=zr, out=jump1);
+
+    // second case 
+    And3Way(a=instruction[2], b=notInstructionFirst, c=notInstructionZeroth, out=temp6);
+    And3Way(a=instruction[2], b=instruction[1], c=notInstructionZeroth, out=temp7);
+
+    Or(a=temp6, b=temp7, out=temp8);
+    And(a=temp8, b=ng, out=jump2);
+
+    // third case
+    And3Way(a=notInstructionSecond, b=notInstructionFirst, c=instruction[0], out=temp9);
+    And3Way(a=notInstructionSecond, b=instruction[1], c=instruction[0], out=temp10);
+
+    Or(a=temp9, b=temp10, out=temp11);
+    And(a=temp11, b=pt, out=jump3);
+
+    // fourth case (all j bits are 1)
+    And3Way(a=instruction[2], b=instruction[1], c=instruction[0], out=jump4);
+
+    // fifth case (all j bits are 0)
+    And3Way(a=instruction[2], b=notInstructionFirst, c=instruction[0], out=temp12);
+    And(a=notZr, b=temp12, out=jump5);
+
+    // determine if at least one of the jumps is 1
+    Or(a=jump1, b=jump2, out=jump1OrJump2);
+    Or(a=jump3, b=jump4, out=jump3OrJump4);
+    Or(a=jump3OrJump4, b=jump5, out=jump3OrJump4OrJump5);
+    Or(a=jump1OrJump2, b=jump3OrJump4OrJump5, out=atLeastOneJump);
+    And(a=atLeastOneJump, b=isCInstruction, out=atLeastOneJumpAndIsCInstruction);
+
+    // now the actual pc
+
+    // inc should be 1 if atLeastOneJump is 0 and reset is 0
+    Not(in=atLeastOneJumpAndIsCInstruction, out=notAtLeastOneJumpAndIsCInstruction);
+    Not(in=reset, out=notReset);
+    And(a=notAtLeastOneJumpAndIsCInstruction, b=notReset, out=doInc);
+
+    PC(in=ARegisterOutput, load=atLeastOneJumpAndIsCInstruction, inc=doInc, reset=reset, out=PCOut);
+    First15Bits(in=PCOut, out=pc);
+
+    // PC END Here
+}

@@ -1,0 +1,7 @@
+CHIP IsPositive {
+    IN  in[16];
+    OUT out[16];
+
+    PARTS:
+    AND(a=in[15], b=false, out=out)
+}
